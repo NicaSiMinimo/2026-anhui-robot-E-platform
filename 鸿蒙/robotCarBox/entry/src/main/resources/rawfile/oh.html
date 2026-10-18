@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROS2 控制面板</title>
+
+<script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+
+<style>
+
+body {
+    margin: 0;
+    background: #111;
+    color: #eee;
+    font-family: Arial;
+}
+
+/* 顶部 */
+.header {
+    padding: 12px;
+    background: #000;
+    text-align: center;
+    font-size: 18px;
+    color: #00d4ff;
+}
+
+/* 连接区域 */
+.connect {
+    display: flex;
+    padding: 10px;
+    gap: 10px;
+}
+
+.connect input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+}
+
+.connect button {
+    padding: 10px 15px;
+    background: #00d4ff;
+    border: none;
+    border-radius: 8px;
+}
+
+/* 状态 */
+.status {
+    text-align: center;
+    font-size: 14px;
+    color: #0f0;
+}
+
+/* 卡片区域 */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+}
+
+.card {
+    background: #1e1e1e;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+}
+
+.card h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.value {
+    font-size: 22px;
+    margin-top: 8px;
+}
+
+.warn {
+    color: red;
+}
+
+/* 摇杆区域 */
+.joystick-container {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 220px;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#joystick {
+    width: 160px;
+    height: 160px;
+    background: #222;
+    border-radius: 50%;
+    position: relative;
+}
+
+#stick {
+    width: 60px;
+    height: 60px;
+    background: #00d4ff;
+    border-radius: 50%;
+    position: absolute;
+    top: 50px;
+    left: 50px;
+}
+
+/* 小屏优化 */
+@media (max-width: 400px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">🤖 ROS2 机器人控制</div>
+
+<div class="connect">
+    <input id="ip" placeholder="机器人IP">
+    <button onclick="connectROS()">连接</button>
+</div>
+
+<div class="status" id="status">未连接</div>
+
+<div class="grid">
+
+    <div class="card">
+        <h3>🌡 温度</h3>
+        <div id="temp" class="value">--</div>
+    </div>
+
+    <div class="card">
+        <h3>💧 湿度</h3>
+        <div id="humi" class="value">--</div>
+    </div>
+
+    <div class="card">
+        <h3>📏 距离</h3>
+        <div id="dist" class="value">--</div>
+    </div>
+
+    <div class="card">
+        <h3>☀ 光照</h3>
+        <div id="light" class="value">--</div>
+    </div>
+
+</div>
+
+<div class="joystick-container">
+    <div id="joystick">
+        <div id="stick"></div>
+    </div>
+</div>
+
+<script>
+
+let ros, cmdVel;
+
+// 连接ROS
+function connectROS() {
+    let ip = document.getElementById("ip").value;
+    ros = new ROSLIB.Ros({
+        url: "ws://" + ip + ":9090"
+    });
+
+    ros.on('connection', () => {
+        document.getElementById("status").innerText = "已连接";
+        initTopics();
+        initCmdVel();
+    });
+
+    ros.on('error', () => document.getElementById("status").innerText = "连接失败");
+}
+
+// 订阅数据
+function initTopics() {
+
+    new ROSLIB.Topic({
+        ros, name: '/temperature', messageType: 'std_msgs/msg/Float32'
+    }).subscribe(msg => temp.innerText = msg.data.toFixed(1));
+
+    new ROSLIB.Topic({
+        ros, name: '/humidity', messageType: 'std_msgs/msg/Float32'
+    }).subscribe(msg => humi.innerText = msg.data.toFixed(1));
+
+    new ROSLIB.Topic({
+        ros, name: '/distance', messageType: 'std_msgs/msg/Float32'
+    }).subscribe(msg => {
+        let d = msg.data;
+        dist.innerText = d.toFixed(1);
+        d < 15 ? dist.classList.add("warn") : dist.classList.remove("warn");
+    });
+
+    new ROSLIB.Topic({
+        ros, name: '/light', messageType: 'std_msgs/msg/Float32'
+    }).subscribe(msg => {
+        let l = msg.data;
+        light.innerText = l.toFixed(1);
+        l < 50 ? light.classList.add("warn") : light.classList.remove("warn");
+    });
+}
+
+// cmd_vel
+function initCmdVel() {
+    cmdVel = new ROSLIB.Topic({
+        ros,
+        name: '/cmd_vel',
+        messageType: 'geometry_msgs/msg/Twist'
+    });
+}
+
+function sendVel(lin, ang) {
+    cmdVel.publish({
+        linear: {x: lin, y: 0, z: 0},
+        angular: {x: 0, y: 0, z: ang}
+    });
+}
+
+// 摇杆（支持触摸）
+let stick = document.getElementById("stick");
+let joystick = document.getElementById("joystick");
+
+let active = false;
+
+joystick.addEventListener("touchstart", () => active = true);
+joystick.addEventListener("touchend", () => {
+    active = false;
+    reset();
+    sendVel(0,0);
+});
+
+joystick.addEventListener("touchmove", (e) => {
+    if (!active) return;
+
+    let touch = e.touches[0];
+    let rect = joystick.getBoundingClientRect();
+
+    let x = touch.clientX - rect.left - 80;
+    let y = touch.clientY - rect.top - 80;
+
+    let max = 60;
+    let d = Math.sqrt(x*x + y*y);
+
+    if (d > max) {
+        x *= max/d;
+        y *= max/d;
+    }
+
+    stick.style.left = (x + 50) + "px";
+    stick.style.top  = (y + 50) + "px";
+
+    let lin = -y / max * 0.5;
+    let ang = -x / max * 1.0;
+
+    sendVel(lin, ang);
+});
+
+function reset() {
+    stick.style.left = "50px";
+    stick.style.top  = "50px";
+}
+
+</script>
+
+</body>
+</html>

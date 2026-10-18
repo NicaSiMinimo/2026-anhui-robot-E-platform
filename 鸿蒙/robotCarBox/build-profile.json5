@@ -1,0 +1,55 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "material": {
+          "certpath": "C:/Users/25727/.ohos/config/openharmony/default_robotCarBox_G8cJViCGJuPqCuzJ60Ta6lPER_sjTnE2tiMwPXH6xbc=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001AB5EB4D6205F73CC6BBF222FB5D0C5D41FBD59A7F0DD038E6B4E9671C0C98364108BD2386ADF2",
+          "profile": "C:/Users/25727/.ohos/config/openharmony/default_robotCarBox_G8cJViCGJuPqCuzJ60Ta6lPER_sjTnE2tiMwPXH6xbc=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:/Users/25727/.ohos/config/openharmony/default_robotCarBox_G8cJViCGJuPqCuzJ60Ta6lPER_sjTnE2tiMwPXH6xbc=.p12",
+          "storePassword": "0000001A663725CAAEFB6AEDD74A896D1374CE524024E30F0A629D52BE8756F1E6C3D65EF906FA1A5BBD"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "5.1.0(18)",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
